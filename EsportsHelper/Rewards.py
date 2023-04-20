@@ -43,32 +43,36 @@ class Rewards:
                     elif stream == "youtube":
                         teams = self.driver.find_element(
                             By.CSS_SELECTOR, "iframe[id=video-player-youtube]").get_attribute("title")
-                    if teams != "":
+                    if teams != "" and "|" in teams:
                         teams = teams.split("|")[0]
+                    elif teams != "" and "-" in teams:
+                        teams = teams.split("-")[0]
+                    else:
+                        teams = ""
                 except Exception:
                     self.log.error(format_exc())
                 self.log.info(
-                    f"√√√√√ {match} {_log('正常观看 可获取奖励', lang=self.config.language)} {teams} √√√√√ ")
+                    f"{match} {_log('正常观看 可获取奖励', lang=self.config.language)} {teams}")
                 print(
-                    f"[green]√√√√√[/green] {match} {_('正常观看 可获取奖励', color='green', lang=self.config.language)} {teams} [green]√√√√√ ")
+                    f"{match} {_('正常观看 可获取奖励', color='green', lang=self.config.language)} {teams}")
 
                 return True
             else:
                 if i != retryTimes - 1:
                     self.log.warning(
-                        f"××××× {match} {_log('观看异常 重试中...', self.config.language)} ××××× ")
+                        f"{match} {_log('观看异常 重试中...', self.config.language)}")
                     print(
-                        f"[yellow]×××××[/yellow] {match} {_('观看异常 重试中...', color='yellow', lang=self.config.language)}[yellow]××××× ")
+                        f"{match} {_('观看异常 重试中...', color='yellow', lang=self.config.language)}")
                     self.driver.refresh()
                     if stream == "youtube":
                         self.youtube.playYoutubeStream()
                 else:
                     self.log.error(
-                        f"××××× {match} {_log('观看异常', lang=self.config.language)} ××××× ")
+                        f"{match} {_log('观看异常', lang=self.config.language)}")
                     print(
-                        f"[red]×××××[/red] {match} {_('观看异常', color='red', lang=self.config.language)} [red]××××× ")
+                        f"{match} {_('观看异常', color='red', lang=self.config.language)}")
                     self.utils.errorNotify(
-                        f"××××× {match} {_log('观看异常', lang=self.config.language)} ××××× ")
+                        f"{match} {_log('观看异常', lang=self.config.language)}")
                     return False
 
     def checkNewDrops(self):
@@ -110,9 +114,9 @@ class Rewards:
                 return isDrop, [], [], [], [], [], []
         except Exception:
             self.driver.implicitly_wait(15)
-            self.log.error(_log("〒.〒 检查掉落失败", lang=self.config.language))
+            self.log.error(_log("检查掉落失败", lang=self.config.language))
             self.log.error(format_exc())
-            print(_("〒.〒 检查掉落失败", color="red", lang=self.config.language))
+            print(_("检查掉落失败", color="red", lang=self.config.language))
             return False, [], [], [], [], [], []
 
     def notifyDrops(self, poweredByImg, productImg, eventTitle, unlockedDate, dropItem, dropItemImg):
@@ -182,8 +186,8 @@ class Rewards:
                 s.post(self.config.connectorDropsUrl, headers={
                        "Content-type": "application/json"}, json=params)
                 time.sleep(5)
-            self.log.info(_log(">_< 掉落提醒成功", lang=self.config.language))
+            self.log.info(_log("掉落提醒成功", lang=self.config.language))
         except Exception:
-            self.log.error(_log("〒.〒 掉落提醒失败", lang=self.config.language))
+            self.log.error(_log("掉落提醒失败", lang=self.config.language))
             self.log.error(format_exc())
-            print(_("〒.〒 掉落提醒失败", color="red", lang=self.config.language))
+            print(_("掉落提醒失败", color="red", lang=self.config.language))

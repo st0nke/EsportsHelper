@@ -6,7 +6,7 @@ from rich import print
 
 
 class VersionManager:
-    CURRENT_VERSION = "1.3.0"
+    CURRENT_VERSION = "1.4.0"
 
     @staticmethod
     def getLatestTag():
@@ -35,5 +35,5 @@ class VersionManager:
     def checkVersion():
         if not VersionManager.isLatestVersion(VersionManager.getVersion()):
             log.warning(
-                f"\n==!!! NEW VERSION Available !!!==\n ==DownLoad: https://github.com/Yudaotor/EsportsHelper/releases/latest")
-            print("[yellow]\n==!!! NEW VERSION Available !!!==\n ==DownLoad: https://github.com/Yudaotor/EsportsHelper/releases/latest ==[/yellow]")
+                f"\n==!!! NEW VERSION AVAILABLE !!!==\n ==DownLoad: https://github.com/Yudaotor/EsportsHelper/releases/latest")
+            print("[yellow]\n==!!! NEW VERSION AVAILABLE !!!==\n ==DownLoad: https://github.com/Yudaotor/EsportsHelper/releases/latest ==[/yellow]")
