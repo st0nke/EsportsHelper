@@ -1,12 +1,15 @@
-import argparse
+from datetime import datetime
 from time import sleep
 from traceback import format_exc
-
-from EsportsHelper.Config import Config
+from threading import Lock
+from EsportsHelper.Config import config
+from EsportsHelper.GUIThread import GUIThread
+from EsportsHelper.I18n import i18n
 from EsportsHelper.Logger import log
 from EsportsHelper.LoginHandler import LoginHandler
 from EsportsHelper.Match import Match
-from EsportsHelper.Utils import Utils, _, _log, getLolesportsWeb, sysQuit
+from EsportsHelper.Stats import stats
+from EsportsHelper.Utils import Utils, getLolesportsWeb, sysQuit, formatExc, acceptCookies
 from EsportsHelper.Webdriver import Webdriver
 from rich import print
 from selenium.common.exceptions import TimeoutException, WebDriverException
@@ -15,122 +18,161 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.wait import WebDriverWait
 
 global driver
+_ = i18n.getText
+_log = i18n.getLog
 
 
-def init(config):
+def initWebdriver():
+    """
+    Initialize the program by creating a webdriver, setting the window size, opening the Lolesports webpage, and switching the language to English.
+    """
+
     global driver
-    # 生成webdriver
+
+    # Generate webdriver
     try:
-        driver = Webdriver(config).createWebdriver()
+        driver = Webdriver().createWebdriver()
     except TypeError:
         driver = None
-        log.error(format_exc())
-        print(_("生成WEBDRIVER失败!\n无法找到最新版谷歌浏览器!如没有下载或不是最新版请检查好再次尝试\n或可以尝试用管理员方式打开\n按任意键退出...",
-              color="red", lang=config.language))
-        input()
+        log.error(formatExc(format_exc()))
+        print(_("生成WEBDRIVER失败!", color="red"))
+        print(_("无法找到最新版谷歌浏览器!如没有下载或不是最新版请检查好再次尝试", color="red"))
+        print(_("或可以尝试用管理员方式打开", color="red"))
+        print(_("如果还不行请尝试重装谷歌浏览器", color="red"))
+        input(_log("按回车键退出"))
         sysQuit(driver)
     except WebDriverException:
         driver = None
-        log.error(format_exc())
-        print(_("生成WEBDRIVER失败!\n是否有谷歌浏览器?\n是否打开着谷歌浏览器?请关闭后再次尝试\n按任意键退出...",
-              color="red", lang=config.language))
-        input()
+        log.error(formatExc(format_exc()))
+        print(_("生成WEBDRIVER失败!", color="red"))
+        print(_("是否有谷歌浏览器?", color="red"))
+        print(_("是否打开着谷歌浏览器?请关闭后再次尝试", color="red"))
+        print(_("如果还不行请尝试重装谷歌浏览器", color="red"))
+        input(_log("按回车键退出"))
         sysQuit(driver)
     except Exception:
         driver = None
-        log.error(format_exc())
-        print(_("生成WEBDRIVER失败!\n是否有谷歌浏览器?\n是不是网络问题?请检查VPN节点是否可用\n按任意键退出...",
-              color="red", lang=config.language))
-        input()
+        log.error(formatExc(format_exc()))
+        print(_("生成WEBDRIVER失败!", color="red"))
+        print(_("是否有谷歌浏览器?", color="red"))
+        print(_("是不是网络问题?请检查VPN节点是否可用", color="red"))
+        print(_("如果还不行请尝试重装谷歌浏览器", color="red"))
+        input(_log("按回车键退出"))
         sysQuit(driver)
-    # 设置窗口大小
+    # Set the window size
     driver.set_window_size(960, 768)
-    # 打开观赛页面
+    driver.set_window_position(0, 0)
+
+
+def switchLanguage():
+    # Open lolesports page
     try:
         getLolesportsWeb(driver)
     except Exception:
-        log.error(format_exc())
         log.error(
-            _log("无法打开Lolesports网页，网络问题，将于3秒后退出...", lang=config.language))
-        print(_("无法打开Lolesports网页，网络问题，将于3秒后退出...",
-              color="red", lang=config.language))
-        sysQuit(driver, _log("Π——Π 无法打开Lolesports网页，网络问题，将于3秒后退出..."))
-    # 切换语言到英语
+            _log("无法打开Lolesports网页，网络问题，将于3秒后退出..."))
+        log.error(formatExc(format_exc()))
+        stats.info.append(f"{datetime.now().strftime('%H:%M:%S')} "
+                          f"{_('无法打开Lolesports网页，网络问题，将于3秒后退出...', color='red')}")
+        Utils().debugScreen(driver, "initWeb")
+        sysQuit(driver, _log("无法打开Lolesports网页，网络问题，将于3秒后退出..."))
+    # Switch web language to English
     try:
         wait = WebDriverWait(driver, 20)
         languageButton = wait.until(ec.presence_of_element_located(
-            (By.CSS_SELECTOR, "#riotbar-right-content > div._1K9T69nrXajaz_b4HNuhtI.riotbar-locale-switcher > div > a")))
+            (By.CSS_SELECTOR, "[data-testid='riotbar:localeswitcher:button-toggleLocaleMenu']")))
         languageButton.click()
-        driver.find_element(by=By.CSS_SELECTOR,
-                            value="#riotbar-right-content > div._1K9T69nrXajaz_b4HNuhtI.riotbar-locale-switcher > div._2iYBTCEu1pbDL1lBawLJ3O.locale-switcher-dropdown > ul > li:nth-child(1) > a").click()
-        log.info(_log("切换语言成功", lang=config.language))
-    except TimeoutException:
-        log.error(_log("切换语言失败", lang=config.language))
-        log.error(format_exc())
+        enUSButton = wait.until(ec.presence_of_element_located(
+            (By.CSS_SELECTOR, "[data-testid='riotbar:localeswitcher:dropdown'] > li:nth-child(1) > a")))
+        enUSButton.click()
+        log.info(_log("切换网页语言成功"))
     except Exception:
-        log.error(_log("切换语言失败", lang=config.language))
-        log.error(format_exc())
+        Utils().debugScreen(driver, "language")
+        log.error(_log("切换网页语言失败"))
+        stats.info.append(f"{datetime.now().strftime('%H:%M:%S')} "
+                          f"{_('切换网页语言失败', color='red')}")
+        log.error(formatExc(format_exc()))
+        sysQuit(driver, _log("切换网页语言失败"))
 
 
-def login(config):
-    loginHandler = LoginHandler(log=log, driver=driver, config=config)
+def login(locks):
+    """
+    The login function, which logs in with the given configuration information and outputs the login result.
+    """
+    loginHandler = LoginHandler(driver=driver, locks=locks)
     if config.userDataDir == "":
         tryLoginTimes = 4
-        while not driver.find_elements(by=By.CSS_SELECTOR, value="div.riotbar-summoner-name"):
+        while not driver.find_elements(by=By.CSS_SELECTOR, value="div.riotbar-summoner-name") and tryLoginTimes > 0:
             try:
-                loginHandler.automaticLogIn(config.username, config.password)
-            except TimeoutException:
-                tryLoginTimes = tryLoginTimes - 1
-                if tryLoginTimes <= 0:
-                    sysQuit(driver, _log("无法登陆，账号密码可能错误或者网络出现问题"))
-                    print(_("无法登陆，账号密码可能错误或者网络出现问题",
-                          color="red", lang=config.language))
-
-                log.error(_log("自动登录失败,检查网络和账号密码", lang=config.language))
-                print(_("自动登录失败,检查网络和账号密码", color="red", lang=config.language))
-                sleep(5)
-                log.error(_log("开始重试", lang=config.language))
-
-        log.info(_log("好嘞 登录成功", lang=config.language))
-        print(_("好嘞 登录成功", color="green", lang=config.language))
+                if loginHandler.automaticLogIn(config.username, config.password):
+                    pass
+                else:
+                    tryLoginTimes = tryLoginTimes - 1
+                    if tryLoginTimes <= 0:
+                        stats.info.append(f"{datetime.now().strftime('%H:%M:%S')} "
+                                          f"{_('无法登录，账号密码可能错误或者网络出现问题', color='red')}")
+                        stats.status = _("离线", color="red")
+                        sysQuit(driver, _log("无法登录，账号密码可能错误或者网络出现问题"))
+                    else:
+                        log.error(_log("5秒后开始重试"))
+                        stats.status = _("5秒后开始重试", color="red")
+                        sleep(5)
+            except Exception:
+                utils = Utils()
+                utils.debugScreen(driver, "login")
+                log.error(formatExc(format_exc()))
+                stats.info.append(f"{datetime.now().strftime('%H:%M:%S')} {_('出现异常,登录失败', color='red')}")
+                sysQuit(driver, _log("出现异常,登录失败"))
+        stats.status = _("在线", color="bold green")
+        log.info(_log("好嘞 登录成功"))
+        stats.info.append(f"{datetime.now().strftime('%H:%M:%S')} {_('好嘞 登录成功', color='green')}")
     else:
         loginHandler.userDataLogin()
-        log.info(_log("使用系统数据 自动登录成功", lang=config.language))
-        print(_("使用系统数据 自动登录成功", color="green", lang=config.language))
+        log.info(_log("使用浏览器缓存 自动登录成功"))
+        stats.info.append(f"{datetime.now().strftime('%H:%M:%S')} {_('使用浏览器缓存 自动登录成功', color='green')}")
+        stats.status = _("在线", color="bold green")
 
 
-def watch(config):
-    Match(log=log, driver=driver, config=config).watchMatches(
-        delay=config.delay, maxRunHours=config.maxRunHours)
+def watch():
+    Match(driver=driver).watchMatches()
 
 
 def main():
+    """
+    Main function to run the EsportsHelper program.
+
+    Parses command line arguments, initializes the configuration and utility objects,
+    initializes the webdriver, logs in, watches the match and prints the completion message.
+
+    """
     global driver
-    # 解析配置参数
-    parser = argparse.ArgumentParser(
-        prog='EsportsHelper.exe', description='EsportsHelper help you to watch matches')
-    parser.add_argument('-c', '--config', dest="configPath", default="./config.yaml",
-                        help='config file path')
-    args = parser.parse_args()
-
-    config = Config(log, args.configPath)
-    # 打印banner信息
-    utils = Utils(config)
+    # Print the banner information
+    utils = Utils()
     utils.info()
-
-    init(config)
+    openDatetime = datetime.now()
+    formattedOpenDatetime = openDatetime.strftime("%Y-%m-%d %H:%M:%S")
+    stats.banner.append(f"{_('开始时间: ', color='green')}" + formattedOpenDatetime)
+    initWebdriver()
     sleep(3)
-    login(config)
+    refreshLock = Lock()
+    locks = {"refreshLock": refreshLock}
+    guiThread = GUIThread(locks)
+    guiThread.daemon = True
+    guiThread.start()
+
+    switchLanguage()
+    acceptCookies(driver=driver)
+    login(locks)
     sleep(1)
-    watch(config)
-    print(_("观看结束～", color="green", lang=config.language))
-    log.info(_log("观看结束～", lang=config.language))
+    watch()
+    stats.info.append(_("观看结束", color="green"))
+    log.info(_log("观看结束"))
 
 
 if __name__ == '__main__':
     try:
         main()
     except (KeyboardInterrupt, SystemExit):
-        sysQuit(driver, "Exit")
-    except Exception as e:
+        sysQuit(driver, _log("程序被终止"))
+    except Exception:
         sysQuit(driver, format_exc())
